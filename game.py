@@ -2,15 +2,15 @@ import othello
 import tkinter as tk
 from time import sleep
 from threading import Thread
+import random
 
 
 def play(p1, p2):
     game = othello.newgame()
     states = []
-    while not game.winner():
-        nodes = game.children()
+    while game.winner() is None:
         move = None
-        while move not in nodes:
+        while move not in game.children():
             if game.player == 1:
                 move = p1(game)
             else:
@@ -21,7 +21,11 @@ def play(p1, p2):
     return game.winner(), states
 
 
-def play_gui(algorithm):
+def play_gui(alg1, alg2=None, silent=False, delay=1):
+    def log(msg):
+        if not silent:
+            print(msg)
+
     root = tk.Tk()
     root.title('Othello')
     canvas = tk.Canvas(root, height=641, width=641, bg='white')
@@ -57,27 +61,41 @@ def play_gui(algorithm):
     root.update()
 
     game = othello.newgame()
+    log(game)
     states = []
-    while not game.winner():
+    while game.winner() is None:
         nodes = game.children()
         move = None
         while move not in nodes:
             if game.player == -1:
-                print('Waiting for player input')
-                while not click_move:
-                    root.update()
-                    sleep(0.05)
-                move = game.place(click_move)
-                if move not in nodes:
-                    print(f'Invalid move {click_move}')
-                click_move = None
+                if not alg2:
+                    log('Waiting for player input')
+                    while not click_move:
+                        root.update()
+                        sleep(0.05)
+                    move = game.place(click_move)
+                    if move not in nodes:
+                        log(f'Invalid move {click_move}')
+                    click_move = None
+                else:
+                    def run_algorithm():
+                        nonlocal move
+                        move = alg2(game)
+
+                    log('Thinking')
+                    Thread(target=run_algorithm).start()
+                    sleep(delay)
+                    while not move:
+                        root.update()
+                        sleep(0.05)
             else:
                 def run_algorithm():
                     nonlocal move
-                    move = algorithm(game)
-                print('Thinking')
+                    move = alg1(game)
+
+                log('Thinking')
                 Thread(target=run_algorithm).start()
-                sleep(1)
+                sleep(delay)
                 while not move:
                     root.update()
                     sleep(0.05)
@@ -85,6 +103,14 @@ def play_gui(algorithm):
         game = move
         draw(game)
         root.update()
-        print(game)
+        log(game)
     states.append(game)
+    sleep(delay)
+    root.destroy()
+    log(f'{(game.board == -1).sum()} - {(game.board == 1).sum()}')
+    log({
+            -1: 'Black Wins!',
+            0: 'Draw!',
+            1: 'White Wins!',
+        }[game.winner()])
     return game.winner(), states

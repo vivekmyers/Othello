@@ -95,7 +95,7 @@ class State:
         if all(chain(*self.board)) or (stuck(self) and stuck(self.children()[0])):
             return np.sign(self.board.sum())
         else:
-            return 0
+            return None
 
     def children(self):
         nodes = [self.place(move) for move in product(*[range(x)

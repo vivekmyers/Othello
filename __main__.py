@@ -1,16 +1,12 @@
 import game
 import algorithm
+import neural
 import tkinter
 from time import sleep
 
 try:
-    winner, states = game.play_gui(algorithm.minimax(algorithm.basic_heuristic, 5))
-    print(f'{(states[-1].board == -1).sum()} - {(states[-1].board == 1).sum()}')
-    print({
-        -1: 'Black Wins!',
-        0: 'Draw!',
-        1: 'White Wins!',
-    }[winner])
+    winner, states = game.play_gui(algorithm.stochastic_minimax(neural.heuristic, 2),
+                                   algorithm.stochastic_minimax(algorithm.basic_heuristic, 2))
     sleep(1)
 except (tkinter.TclError, KeyboardInterrupt, EOFError):
     print('\nQuit')
