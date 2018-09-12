@@ -55,4 +55,9 @@ def stochastic_minimax(heuristic, max_depth):
             return result[-1]
         else:
             return result[0]
+
     return select
+
+
+def stochastic(state):
+    return random.choice(state.children())

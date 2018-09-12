@@ -5,8 +5,11 @@ import tkinter
 from time import sleep
 
 try:
-    winner, states = game.play_gui(algorithm.stochastic_minimax(neural.heuristic, 2),
-                                   algorithm.stochastic_minimax(algorithm.basic_heuristic, 2))
+    winner, states = game.play_gui(
+        algorithm.minimax(neural.heuristic, 5),
+        delay=1,
+        heuristic=neural.heuristic,
+    )
     sleep(1)
 except (tkinter.TclError, KeyboardInterrupt, EOFError):
     print('\nQuit')

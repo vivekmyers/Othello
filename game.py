@@ -1,8 +1,8 @@
-import othello
 import tkinter as tk
-from time import sleep
 from threading import Thread
-import random
+from time import sleep
+
+import othello
 
 
 def play(p1, p2):
@@ -21,10 +21,10 @@ def play(p1, p2):
     return game.winner(), states
 
 
-def play_gui(alg1, alg2=None, silent=False, delay=1):
-    def log(msg):
+def play_gui(alg1, alg2=None, silent=False, delay=0, heuristic=None):
+    def log(*msg):
         if not silent:
-            print(msg)
+            print(*msg)
 
     root = tk.Tk()
     root.title('Othello')
@@ -62,6 +62,8 @@ def play_gui(alg1, alg2=None, silent=False, delay=1):
 
     game = othello.newgame()
     log(game)
+    if heuristic:
+        log("Confidence:", heuristic(game))
     states = []
     while game.winner() is None:
         nodes = game.children()
@@ -102,8 +104,10 @@ def play_gui(alg1, alg2=None, silent=False, delay=1):
         states.append(game)
         game = move
         draw(game)
-        root.update()
         log(game)
+        if heuristic:
+            log("Confidence: {0:.1f}%".format(heuristic(game) * 100))
+        root.update()
     states.append(game)
     sleep(delay)
     root.destroy()

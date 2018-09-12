@@ -5,6 +5,7 @@ import algorithm
 import game
 import tqdm
 import tensorflow as tf
+import matplotlib.pyplot as plt
 from os import system, environ
 
 environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -73,7 +74,7 @@ error = tf.reduce_mean(
         name='error',
     )
 )
-optimizer = tf.train.MomentumOptimizer(0.0005, 0.5).minimize(error)
+optimizer = tf.train.MomentumOptimizer(0.001, 0.9).minimize(error)
 sess.run(tf.global_variables_initializer())
 
 if __name__ == '__main__' and argv[1] == 'new':
@@ -106,28 +107,41 @@ def benchmark():
 
 
 if __name__ == '__main__' and argv[1] != 'new':
-    bench = benchmark()
-    print(f'Winrate: {bench}%')
+    print(f'Winrate: {benchmark()}%')
     it = int(argv[1])
     for i in range(it):
         training_data = []
+        testing_data = []
         print()
-        for j in tqdm.trange(100, desc='Simulating self play'):
+        for j in tqdm.trange(1000, desc='Simulating self play'):
             result, states = game.play(
                 algorithm.stochastic_minimax(heuristic, 1),
                 algorithm.stochastic_minimax(heuristic, 1),
             )
             for s in states:
-                training_data.append([result, s])
+                (training_data if j > 10 else testing_data).append([result, s])
         random.shuffle(training_data)
-        testing_data = training_data[:10]
-        training_data = training_data[10:]
         print()
-        prog = tqdm.trange(1000, desc='Training')
+
+
+        def loss():
+            inp = game_tensor([b for a, b in testing_data])
+            correct_output = [[1, 0] if a == 1 else [0, 1] for a, b in testing_data]
+            return sess.run(error, feed_dict={
+                input: inp,
+                winner: correct_output,
+            })
+
+
+        start = loss()
+        end = start
+        plt.figure()
+        plt.axis([0, 1, 0, 1])
+        prog = tqdm.trange(10000, desc='Training')
         for j in prog:
             batch = training_data[:]
             random.shuffle(batch)
-            batch = batch[:10]
+            batch = batch[:16]
             inp = game_tensor([b for a, b in batch])
             correct_output = [[1, 0] if a == 1 else [0, 1] for a, b in batch]
 
@@ -136,24 +150,21 @@ if __name__ == '__main__' and argv[1] != 'new':
                 winner: correct_output,
             })
 
-            if random.random() < 0.3:
+            if random.random() < 0.1:
                 inp = game_tensor([b for a, b in testing_data])
                 correct_output = [[1, 0] if a == 1 else [0, 1] for a, b in testing_data]
-                prog.set_description("Training (loss={0:.5f})".format(
-                    sess.run(error, feed_dict={
-                        input: inp,
-                        winner: correct_output,
-                    })))
+                end = loss()
+                prog.set_description("Training (loss={0:.5f})".format(end))
                 prog.refresh()
+                plt.scatter(j / 10000, end, s=20)
+                plt.show()
+                plt.pause(0.001)
         print()
-        strength = benchmark()
-        print(f'Winrate: {strength}%')
-        if strength >= bench:
-            bench = strength
+
+        if end < start:
             saver.save(sess, model_file)
-            print()
             print(f'Saving to {model_file}')
         else:
             saver.restore(sess, model_file)
-            print()
             print('Model rejected, rolling back changes')
+    print(f'Winrate: {benchmark()}%')
