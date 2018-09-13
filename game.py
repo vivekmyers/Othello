@@ -59,12 +59,12 @@ def play_gui(alg1, alg2=None, silent=False, delay=0, heuristic=None):
     draw(game)
     canvas.bind("<Button-1>", click)
     root.update()
-
-    game = othello.newgame()
     log(game)
+
     if heuristic:
-        log("Confidence:", heuristic(game))
+        log(f"Confidence: {heuristic(game) * 100:.1f}%")
     states = []
+
     while game.winner() is None:
         nodes = game.children()
         move = None

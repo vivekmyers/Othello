@@ -5,6 +5,12 @@ import algorithm
 import game
 import tqdm
 import tensorflow as tf
+from sys import platform
+
+if platform == 'darwin':
+    import matplotlib
+
+    matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from os import system, environ
 
@@ -38,6 +44,7 @@ conv1 = tf.layers.conv2d(
     kernel_size=[5, 5],
     padding='same',
     activation=tf.nn.relu,
+    kernel_regularizer=tf.contrib.layers.l2_regularizer(scale=0.001),
     name='conv1'
 )
 conv2 = tf.layers.conv2d(
@@ -46,6 +53,7 @@ conv2 = tf.layers.conv2d(
     kernel_size=[3, 3],
     padding='same',
     activation=tf.nn.relu,
+    kernel_regularizer=tf.contrib.layers.l2_regularizer(scale=0.001),
     name='conv2'
 )
 conv_output = tf.reshape(conv2, shape=[-1, 32 * 8 * 8], name='reshape')
@@ -67,7 +75,7 @@ output = tf.layers.dense(
 
 prediction = tf.nn.softmax(output, name='prediction')
 winner = tf.placeholder(tf.float32, shape=[None, 2], name='winner')
-error = tf.reduce_mean(
+error = tf.losses.get_regularization_loss() + tf.reduce_mean(
     tf.nn.softmax_cross_entropy_with_logits_v2(
         labels=winner,
         logits=output,
@@ -89,34 +97,23 @@ saver.restore(sess, model_file)
 
 
 def heuristic(state):
+    if state.winner() is not None:
+        return (state.winner() + 1) / 2
     board = game_tensor([state])
     out = sess.run(prediction, feed_dict={input: board})
     return out[0][0]
 
 
-def benchmark():
-    wincount = 0
-    for i in tqdm.trange(100, desc='Benchmarking against greedy algorithm'):
-        result, states = game.play(
-            algorithm.stochastic_minimax(heuristic, 1),
-            algorithm.stochastic_minimax(algorithm.basic_heuristic, 1),
-        )
-        if result == 1:
-            wincount += 1
-    return wincount
-
-
 if __name__ == '__main__' and argv[1] != 'new':
-    print(f'Winrate: {benchmark()}%')
     it = int(argv[1])
+
     for i in range(it):
         training_data = []
         testing_data = []
-        print()
-        for j in tqdm.trange(1000, desc='Simulating self play'):
+        for j in tqdm.trange(200, desc='Simulating self play'):
             result, states = game.play(
-                algorithm.stochastic_minimax(heuristic, 1),
-                algorithm.stochastic_minimax(heuristic, 1),
+                algorithm.stochastic_minimax(heuristic, 2),
+                algorithm.stochastic_minimax(heuristic, 2),
             )
             for s in states:
                 (training_data if j > 10 else testing_data).append([result, s])
@@ -127,44 +124,49 @@ if __name__ == '__main__' and argv[1] != 'new':
         def loss():
             inp = game_tensor([b for a, b in testing_data])
             correct_output = [[1, 0] if a == 1 else [0, 1] for a, b in testing_data]
-            return sess.run(error, feed_dict={
+            valid_loss = sess.run(error, feed_dict={
                 input: inp,
                 winner: correct_output,
             })
+            inp = game_tensor([b for a, b in training_data])
+            correct_output = [[1, 0] if a == 1 else [0, 1] for a, b in training_data]
+            train_loss = sess.run(error, feed_dict={
+                input: inp[:200],
+                winner: correct_output[:200],
+            })
+            return valid_loss, train_loss
 
 
-        start = loss()
-        end = start
         plt.figure()
-        plt.axis([0, 1, 0, 1])
-        prog = tqdm.trange(10000, desc='Training')
+        plt.xlim([0, 1])
+        plt.ylim([0, 1])
+        plt.xlabel('Time')
+        plt.ylabel('Loss')
+        prog = tqdm.trange(500, desc='Training')
+        plt.scatter(-1, 0, s=10, color='red', label="Training Loss")
+        plt.scatter(-1, 0, s=10, color='blue', label="Validation Loss")
+        plt.legend()
+
         for j in prog:
             batch = training_data[:]
             random.shuffle(batch)
-            batch = batch[:16]
-            inp = game_tensor([b for a, b in batch])
-            correct_output = [[1, 0] if a == 1 else [0, 1] for a, b in batch]
+            batch = batch[:128]
 
             sess.run(optimizer, feed_dict={
-                input: inp,
-                winner: correct_output,
+                input: game_tensor([b for a, b in batch]),
+                winner: [[1, 0] if a == 1 else [0, 1] for a, b in batch]
             })
 
-            if random.random() < 0.1:
-                inp = game_tensor([b for a, b in testing_data])
-                correct_output = [[1, 0] if a == 1 else [0, 1] for a, b in testing_data]
-                end = loss()
-                prog.set_description("Training (loss={0:.5f})".format(end))
+            if j % 5 == 0:
+                valid_loss, train_loss = loss()
+                prog.set_description("Training (loss={0:.5f})".format(valid_loss))
                 prog.refresh()
-                plt.scatter(j / 10000, end, s=20)
-                plt.show()
-                plt.pause(0.001)
-        print()
+                plt.scatter(j / 500, train_loss, s=5, color='red', label="Training Loss")
+                plt.scatter(j / 500, valid_loss, s=5, color='blue', label="Validation Loss")
+            plt.pause(0.001)
 
-        if end < start:
-            saver.save(sess, model_file)
-            print(f'Saving to {model_file}')
-        else:
-            saver.restore(sess, model_file)
-            print('Model rejected, rolling back changes')
-    print(f'Winrate: {benchmark()}%')
+        plt.close()
+        print()
+        saver.save(sess, model_file)
+        print(f'Saving to {model_file}')
+        print()
