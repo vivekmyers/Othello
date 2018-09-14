@@ -91,7 +91,7 @@ error = tf.losses.get_regularization_loss() + tf.reduce_mean(
         name='error',
     )
 )
-optimizer = tf.train.MomentumOptimizer(0.0005, 0.9).minimize(error)
+optimizer = tf.train.MomentumOptimizer(0.001, 0.9).minimize(error)
 sess.run(tf.global_variables_initializer())
 
 if __name__ == '__main__' and argv[1] == 'new':
@@ -119,13 +119,13 @@ if __name__ == '__main__' and argv[1] != 'new':
     for i in range(it):
         training_data = []
         testing_data = []
-        for j in tqdm.trange(100, desc='Simulating self play'):
+        for j in tqdm.trange(1000, desc='Simulating self play'):
             result, states = game.play(
-                algorithm.stochastic_minimax(heuristic, 2),
-                algorithm.stochastic_minimax(heuristic, 2),
+                algorithm.stochastic_minimax(heuristic, 1),
+                algorithm.stochastic_minimax(heuristic, 1),
             )
             for s in states:
-                (training_data if j > 10 else testing_data).append([result, s])
+                (training_data if j > 30 else testing_data).append([result, s])
         random.shuffle(training_data)
         print()
 
@@ -151,15 +151,13 @@ if __name__ == '__main__' and argv[1] != 'new':
         plt.ylim([0, 1])
         plt.xlabel('Time')
         plt.ylabel('Loss')
-        prog = tqdm.trange(300, desc='Training')
         plt.scatter(-1, 0, s=10, color='red', label="Training Loss")
         plt.scatter(-1, 0, s=10, color='blue', label="Validation Loss")
         plt.legend()
+        prog = tqdm.trange(300, desc='Training')
 
         for j in prog:
-            batch = training_data[:]
-            random.shuffle(batch)
-            batch = batch[:512]
+            batch = random.sample(training_data, 256)
 
             sess.run(optimizer, feed_dict={
                 input: game_tensor([b for a, b in batch]),

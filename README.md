@@ -15,8 +15,8 @@ To benchmark:
 To show sample game against greedy minimax:
 `python3 visual.py`
 
-Dependencies:<br>
-numpy<br>
-tensorflow<br>
-tqdm<br>
-matplotlib<br>
+Dependencies:
+* numpy
+* tensorflow
+* tqdm
+* matplotlib
