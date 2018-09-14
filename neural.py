@@ -56,10 +56,19 @@ conv2 = tf.layers.conv2d(
     kernel_regularizer=tf.contrib.layers.l2_regularizer(scale=0.001),
     name='conv2'
 )
-conv_output = tf.reshape(conv2, shape=[-1, 32 * 8 * 8], name='reshape')
+conv3 = tf.layers.conv2d(
+    inputs=conv2,
+    filters=32,
+    kernel_size=[3, 3],
+    padding='same',
+    activation=tf.nn.relu,
+    kernel_regularizer=tf.contrib.layers.l2_regularizer(scale=0.001),
+    name='conv3'
+)
+conv_output = tf.reshape(conv3, shape=[-1, 32 * 8 * 8], name='reshape')
 dense = tf.layers.dense(
     inputs=conv_output,
-    units=32 * 8,
+    units=32 * 8 * 2,
     name='dense1'
 )
 drop = tf.layers.dropout(
@@ -82,7 +91,7 @@ error = tf.losses.get_regularization_loss() + tf.reduce_mean(
         name='error',
     )
 )
-optimizer = tf.train.MomentumOptimizer(0.001, 0.9).minimize(error)
+optimizer = tf.train.MomentumOptimizer(0.0005, 0.9).minimize(error)
 sess.run(tf.global_variables_initializer())
 
 if __name__ == '__main__' and argv[1] == 'new':
@@ -110,7 +119,7 @@ if __name__ == '__main__' and argv[1] != 'new':
     for i in range(it):
         training_data = []
         testing_data = []
-        for j in tqdm.trange(200, desc='Simulating self play'):
+        for j in tqdm.trange(100, desc='Simulating self play'):
             result, states = game.play(
                 algorithm.stochastic_minimax(heuristic, 2),
                 algorithm.stochastic_minimax(heuristic, 2),
@@ -135,14 +144,14 @@ if __name__ == '__main__' and argv[1] != 'new':
                 winner: correct_output[:200],
             })
             return valid_loss, train_loss
-
-
+        
+        start_loss, _ = loss()
         plt.figure()
         plt.xlim([0, 1])
         plt.ylim([0, 1])
         plt.xlabel('Time')
         plt.ylabel('Loss')
-        prog = tqdm.trange(500, desc='Training')
+        prog = tqdm.trange(300, desc='Training')
         plt.scatter(-1, 0, s=10, color='red', label="Training Loss")
         plt.scatter(-1, 0, s=10, color='blue', label="Validation Loss")
         plt.legend()
@@ -150,21 +159,21 @@ if __name__ == '__main__' and argv[1] != 'new':
         for j in prog:
             batch = training_data[:]
             random.shuffle(batch)
-            batch = batch[:128]
+            batch = batch[:512]
 
             sess.run(optimizer, feed_dict={
                 input: game_tensor([b for a, b in batch]),
                 winner: [[1, 0] if a == 1 else [0, 1] for a, b in batch]
             })
 
-            if j % 5 == 0:
-                valid_loss, train_loss = loss()
-                prog.set_description("Training (loss={0:.5f})".format(valid_loss))
-                prog.refresh()
-                plt.scatter(j / 500, train_loss, s=5, color='red', label="Training Loss")
-                plt.scatter(j / 500, valid_loss, s=5, color='blue', label="Validation Loss")
+            valid_loss, train_loss = loss()
+            prog.set_description("Training (loss={0:.5f})".format(valid_loss))
+            prog.refresh()
+            plt.scatter(j / 300, train_loss, s=5, color='red', label="Training Loss")
+            plt.scatter(j / 300, valid_loss, s=5, color='blue', label="Validation Loss")
             plt.pause(0.001)
 
+        print(f'Delta: {valid_loss - start_loss}')
         plt.close()
         print()
         saver.save(sess, model_file)

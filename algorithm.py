@@ -3,6 +3,8 @@ import random
 
 
 def basic_heuristic(state):
+    if state.winner() is not None:
+        return state.winner() * 128
     return state.board.sum() + \
            state.board[([0, 0, 7, 7], [0, 7, 0, 7])].sum() * 4 + \
            state.board[0, :].sum() + state.board[:, 0].sum() + \
