@@ -95,7 +95,7 @@ optimizer = tf.train.MomentumOptimizer(0.001, 0.9).minimize(error)
 sess.run(tf.global_variables_initializer())
 
 if __name__ == '__main__' and argv[1] == 'new':
-    system('rm -rf model/*')
+    system('rm -rf model/othello*')
     saver = tf.train.Saver()
     saver.save(sess, model_file)
     print(f'New model saved to {model_file}')

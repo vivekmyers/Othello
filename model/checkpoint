@@ -1,2 +1,2 @@
-model_checkpoint_path: "othello.ckpt"
-all_model_checkpoint_paths: "othello.ckpt"
+model_checkpoint_path: "qlearn.ckpt"
+all_model_checkpoint_paths: "qlearn.ckpt"
