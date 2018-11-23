@@ -1,4 +1,5 @@
 import random
+from math import *
 from sys import argv
 import numpy as np
 import algorithm
@@ -143,7 +144,7 @@ if __name__ == '__main__' and argv[1] != 'new':
     
     train_tuples = []
     for i in range(it):
-        for j in tqdm.trange(100, desc='Simulating self play'):
+        for j in tqdm.trange(1000, desc='Simulating self play'):
             result, states = game.play(
                 stochastic_maxq,
                 stochastic_maxq,
@@ -156,7 +157,7 @@ if __name__ == '__main__' and argv[1] != 'new':
                 train_tuples += [(s, a, q0)]
                 if len(train_tuples) > 500:
                     train_tuples = train_tuples[1:]
-            for i in train_tuples:
+            for i in train_tuples[:50]:
                 train(*i)
 
         saver.save(sess, model_file)
